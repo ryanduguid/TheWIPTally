@@ -18,6 +18,8 @@
 
 **Deterministic work-in-progress schedule for Australian construction, civil, mining-services and power-station packages.** Review aid. Not a determination.
 
+**Status: incubating.** It is an evolving review aid, not a substitute for professional judgement.
+
 `hardhat-ledger` already encodes the WIP *workflow*. This engine does the arithmetic that workflow consumes: cost-to-cost progress after AASB 15 para B19 exclusions, constrained variable consideration, per-contract contract assets and contract liabilities, and month-on-month profit fade.
 
 The repository name is the public project identity; the `the-wip-tally` distribution, `wip-tally` command and `wiptally` import package are the install identifiers.

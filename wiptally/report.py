@@ -5,12 +5,15 @@ from __future__ import annotations
 import csv
 import hashlib
 from decimal import Decimal
+from io import StringIO
 from pathlib import Path
+from typing import TextIO
 
 from .atomic_io import atomic_text_writer, atomic_write_text
 from .csvsafe import guard
 from .model import ContractPosition, Schedule
 from .money import money, percent, points
+from .schedule import ScheduleError
 
 OUTPUT_COLUMNS = (
     "contract_id",
@@ -106,12 +109,16 @@ def _row(position: ContractPosition) -> list[str]:
     ]
 
 
+def _write_schedule_csv(handle: TextIO, schedule: Schedule) -> None:
+    writer = csv.writer(handle, lineterminator="\n")
+    writer.writerow(OUTPUT_COLUMNS)
+    for position in schedule.positions:
+        writer.writerow(_row(position))
+
+
 def write_schedule_csv(path: Path, schedule: Schedule) -> None:
     with atomic_text_writer(path, encoding="utf-8", newline="") as handle:
-        writer = csv.writer(handle, lineterminator="\n")
-        writer.writerow(OUTPUT_COLUMNS)
-        for position in schedule.positions:
-            writer.writerow(_row(position))
+        _write_schedule_csv(handle, schedule)
 
 
 def render_console(schedule: Schedule) -> str:
@@ -160,7 +167,14 @@ def build_review_pack(
     source_path: Path | None,
     schedule: Schedule,
 ) -> str:
-    schedule_hash = sha256_file(schedule_path)
+    schedule_bytes = schedule_path.read_bytes()
+    with StringIO(newline="") as expected:
+        _write_schedule_csv(expected, schedule)
+        expected_bytes = expected.getvalue().encode("utf-8")
+    if schedule_bytes != expected_bytes:
+        raise ScheduleError(f"{schedule_path} does not match the rebuilt schedule")
+
+    schedule_hash = hashlib.sha256(schedule_bytes).hexdigest()
     source_hash = sha256_file(source_path) if source_path is not None else "not supplied"
     source_name = source_path.name if source_path is not None else "not supplied"
     lines = [

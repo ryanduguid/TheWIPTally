@@ -89,6 +89,31 @@ def test_review_pack_binds_source_hash(tmp_path: Path) -> None:
     assert "Source SHA-256" in text
 
 
+def test_review_pack_rejects_tampered_schedule(tmp_path: Path) -> None:
+    schedule = tmp_path / "wip-schedule.csv"
+    pack = tmp_path / "practitioner-review.md"
+    assert main(["schedule", str(SAMPLE), "-o", str(schedule), "--as-at", "2026-08-31"]) == 2
+
+    original = schedule.read_bytes()
+    tampered = original.replace(b"500000.00", b"500001.00", 1)
+    assert tampered != original
+    schedule.write_bytes(tampered)
+
+    assert main(
+        [
+            "review-pack",
+            str(schedule),
+            "--source",
+            str(SAMPLE),
+            "-o",
+            str(pack),
+            "--as-at",
+            "2026-08-31",
+        ]
+    ) == 1
+    assert not pack.exists()
+
+
 def test_mapping_file_renames_columns(tmp_path: Path) -> None:
     contracts = tmp_path / "jobs.csv"
     contracts.write_text(

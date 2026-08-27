@@ -20,6 +20,10 @@
 
 **Status: incubating.** It is an evolving review aid, not a substitute for professional judgement.
 
+**Package lifecycle:** source-installable candidate only. A public package will
+be considered after demonstrated user demand, a fresh name-availability check
+and compatibility tests.
+
 `hardhat-ledger` already encodes the WIP *workflow*. This engine does the arithmetic that workflow consumes: cost-to-cost progress after AASB 15 para B19 exclusions, constrained variable consideration, per-contract contract assets and contract liabilities, and month-on-month profit fade.
 
 The repository name is the public project identity; the `the-wip-tally` distribution, `wip-tally` command and `wiptally` import package are the install identifiers.

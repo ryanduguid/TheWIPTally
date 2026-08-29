@@ -43,9 +43,45 @@ def test_sample_schedule_pins_the_worked_examples(tmp_path: Path) -> None:
     assert power["contract_asset"] == "71000.00"
     assert "onerous_contract_review_aasb_137" in power["flags"]
 
-    early = rows["EXPLORATORY-01"]
-    assert early["revenue_to_date"] == "100000.00"
-    assert early["percent_complete"] == "0.00"
+    # Pinned whole, not field by field. A truncated source row shifts trailing
+    # columns silently, and only the whole row shows it.
+    assert rows["EXPLORATORY-01"] == {
+        "contract_id": "EXPLORATORY-01",
+        "customer": "Example Principal Pty Ltd",
+        "description": "Early works outcome not yet measurable",
+        "progress_method": "cost_to_cost",
+        "original_contract_sum": "600000.00",
+        "approved_variations": "0.00",
+        "unapproved_variations_estimate": "0.00",
+        "variable_consideration_included": "0.00",
+        "variable_consideration_excluded": "0.00",
+        "transaction_price": "600000.00",
+        "costs_incurred": "100000.00",
+        "inefficiency_rework_wastage": "0.00",
+        "uninstalled_materials": "0.00",
+        "progress_cost": "100000.00",
+        "estimated_cost_to_complete": "400000.00",
+        "estimated_cost_at_completion": "500000.00",
+        "progress_eac": "500000.00",
+        "percent_complete": "0.00",
+        "revenue_to_date": "100000.00",
+        "certified_billings": "0.00",
+        "uncertified_claims": "0.00",
+        "contract_asset": "100000.00",
+        "contract_liability": "0.00",
+        "gross_profit_at_completion": "100000.00",
+        "margin_at_completion": "0.1666666666666666666666666667",
+        "prior_margin_at_completion": "",
+        "profit_fade_points": "",
+        # No prior period, so no period revenue. Not 99999.90.
+        "period_revenue": "",
+        "retention_withheld": "0.00",
+        "retention_classification": "review",
+        "gst_on_certified_billings": "0.00",
+        "gst_on_retention": "0.00",
+        "committed_outstanding": "0.00",
+        "flags": "outcome_not_reasonably_measurable|etc_has_no_commitments",
+    }
 
 
 def test_portfolio_totals_are_not_netted(tmp_path: Path) -> None:

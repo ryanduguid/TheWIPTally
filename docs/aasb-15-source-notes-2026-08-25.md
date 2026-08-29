@@ -52,7 +52,7 @@ Fabricated. No real contracts.
 2. B19 wastage plus stale ETC and profit fade: waste $80,000 stripped from progress; EAC still includes it; margin fades from 18.75% to nil.
 3. Constrained mining-services claim: $400,000 unapproved x 25% constraint. Transaction price $2,200,000. $300,000 stays off-schedule.
 4. Uninstalled materials on an underwater power-station civil package: $70,000 at cost; remainder at 70% POC; AASB 137 flag.
-5. Para 45 early works: outcome not measurable; revenue equals recoverable cost $100,000.
+5. Para 45 early works: outcome not measurable; revenue equals recoverable cost $100,000. No prior period, so period revenue stays blank and no fade is measured.
 
 ## Residual limits
 

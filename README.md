@@ -98,6 +98,11 @@ Required: `contract_id`, `original_contract_sum`, `costs_incurred`,
 `estimated_cost_to_complete`, `certified_billings`. Everything else is optional
 but sharpens the answer. Amounts are exclusive of GST.
 
+Every data row must carry one field per header column. Leave an optional field
+empty rather than short. A row with the wrong field count is refused with its
+row number, because its trailing columns would otherwise shift by one position
+and read as absent.
+
 | Field | Meaning |
 | --- | --- |
 | `contract_id` | One unit of account. Combine contracts under AASB 15 para 17 *before* they reach this file |

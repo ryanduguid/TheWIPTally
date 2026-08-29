@@ -155,6 +155,12 @@ def read_contracts(path: Path, mapping: dict[str, str]) -> list[ContractInput]:
             if not row or all(not cell.strip() for cell in row):
                 continue
             try:
+                if len(row) != len(header):
+                    raise CsvError(
+                        f"row {line_number}: has {len(row)} field(s) but the "
+                        f"header has {len(header)}; a short row would read its "
+                        f"missing trailing columns as absent"
+                    )
                 contract = _parse_row(row, index, mapping, line_number)
             except (AmountError, CsvError) as exc:
                 errors.append(str(exc))

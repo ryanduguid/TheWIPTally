@@ -16,6 +16,10 @@ from .money import money, percent, points
 from .schedule import ScheduleError
 
 OUTPUT_COLUMNS = (
+    # The reporting date is written on every row so that it sits inside the
+    # bytes the review pack hashes and rebuilds. A schedule cannot then be
+    # signed off under a different period's header.
+    "as_at",
     "contract_id",
     "customer",
     "description",
@@ -52,7 +56,7 @@ OUTPUT_COLUMNS = (
     "flags",
 )
 
-SCHEMA_VERSION = "wip-tally-schedule-v1"
+SCHEMA_VERSION = "wip-tally-schedule-v2"
 
 
 def sha256_file(path: Path) -> str:
@@ -69,9 +73,25 @@ def _dec(value: Decimal | None) -> str:
     return format(value, "f")
 
 
-def _row(position: ContractPosition) -> list[str]:
+def _one_line(value: str) -> str:
+    """Collapse a ledger-derived value onto a single display line."""
+    return " ".join(value.split())
+
+
+def _md_cell(value: str) -> str:
+    """Escape a ledger-derived value for one markdown table cell.
+
+    Contract identifiers come from whatever the ledger holds. An unescaped pipe
+    pushes the rest of the row under the wrong headings, and an embedded newline
+    ends the table.
+    """
+    return _one_line(value).replace("|", "\\|")
+
+
+def _row(position: ContractPosition, as_at: str) -> list[str]:
     contract = position.contract
     return [
+        guard(as_at),
         guard(contract.contract_id),
         guard(contract.customer),
         guard(contract.description),
@@ -113,7 +133,7 @@ def _write_schedule_csv(handle: TextIO, schedule: Schedule) -> None:
     writer = csv.writer(handle, lineterminator="\n")
     writer.writerow(OUTPUT_COLUMNS)
     for position in schedule.positions:
-        writer.writerow(_row(position))
+        writer.writerow(_row(position, schedule.as_at))
 
 
 def write_schedule_csv(path: Path, schedule: Schedule) -> None:
@@ -156,7 +176,8 @@ def render_console(schedule: Schedule) -> str:
             else "n/a"
         )
         lines.append(
-            f"    {position.contract.contract_id}  margin {margin}  fade {fade}"
+            f"    {_one_line(position.contract.contract_id)}  "
+            f"margin {margin}  fade {fade}"
         )
         lines.append(f"      {', '.join(position.flags)}")
     return "\n".join(lines) + "\n"
@@ -172,7 +193,10 @@ def build_review_pack(
         _write_schedule_csv(expected, schedule)
         expected_bytes = expected.getvalue().encode("utf-8")
     if schedule_bytes != expected_bytes:
-        raise ScheduleError(f"{schedule_path} does not match the rebuilt schedule")
+        raise ScheduleError(
+            f"{schedule_path} does not match the rebuilt schedule; the source "
+            f"file, the mapping and --as-at must be the ones that produced it"
+        )
 
     schedule_hash = hashlib.sha256(schedule_bytes).hexdigest()
     source_hash = sha256_file(source_path) if source_path is not None else "not supplied"
@@ -237,7 +261,8 @@ def build_review_pack(
             )
             flags = ", ".join(position.flags)
             lines.append(
-                f"| {position.contract.contract_id} | {margin} | {fade} | {flags} |"
+                f"| {_md_cell(position.contract.contract_id)} | {margin} "
+                f"| {fade} | {flags} |"
             )
         lines.append("")
     lines.append("Keep this pack beside the schedule CSV. The CSV is the row-level evidence.")

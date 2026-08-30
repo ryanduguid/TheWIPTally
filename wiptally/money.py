@@ -138,9 +138,18 @@ def percent(value: Decimal) -> str:
     return f"{scaled}%"
 
 
-def points(value: Decimal) -> str:
-    """Format a margin movement in percentage points."""
+def as_points(value: Decimal) -> Decimal:
+    """Quantise a margin movement to the two places it is displayed at.
+
+    The flag threshold and the printed figure have to be the same number, so
+    every margin movement is put through here before either is taken.
+    """
     quantised = value.quantize(PERCENT_POINTS, rounding=ROUND_HALF_UP)
     if quantised == 0:
-        quantised = Decimal("0.00")
-    return f"{quantised} points"
+        return Decimal("0.00")
+    return quantised
+
+
+def points(value: Decimal) -> str:
+    """Format a margin movement in percentage points."""
+    return f"{as_points(value)} points"

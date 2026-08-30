@@ -3,6 +3,8 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
+import pytest
+
 from wiptally.cli import main
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,6 +48,9 @@ def test_sample_schedule_pins_the_worked_examples(tmp_path: Path) -> None:
     # Pinned whole, not field by field. A truncated source row shifts trailing
     # columns silently, and only the whole row shows it.
     assert rows["EXPLORATORY-01"] == {
+        # The period the row was computed for travels with the row, so the
+        # review pack cannot bind a June schedule to an August header.
+        "as_at": "2026-08-31",
         "contract_id": "EXPLORATORY-01",
         "customer": "Example Principal Pty Ltd",
         "description": "Early works outcome not yet measurable",
@@ -148,6 +153,62 @@ def test_review_pack_rejects_tampered_schedule(tmp_path: Path) -> None:
         ]
     ) == 1
     assert not pack.exists()
+
+
+def test_review_pack_refuses_a_schedule_from_another_period(tmp_path: Path) -> None:
+    """A June schedule must not be bound under an August sign-off header."""
+    schedule = tmp_path / "wip-schedule.csv"
+    pack = tmp_path / "practitioner-review.md"
+    assert main(["schedule", str(SAMPLE), "-o", str(schedule), "--as-at", "2026-06-30"]) == 2
+    assert main(
+        [
+            "review-pack",
+            str(schedule),
+            "--source",
+            str(SAMPLE),
+            "-o",
+            str(pack),
+            "--as-at",
+            "2026-08-31",
+        ]
+    ) == 1
+    assert not pack.exists()
+
+
+def test_as_at_must_be_a_real_iso_date(tmp_path: Path) -> None:
+    """A transposed reporting date must not date the evidence."""
+    out = tmp_path / "wip-schedule.csv"
+    assert main(["schedule", str(SAMPLE), "-o", str(out), "--as-at", "2026-31-08"]) == 1
+    assert not out.exists()
+
+
+def test_non_utf8_source_reports_an_error_not_a_traceback(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An ANSI-codepage ledger export is a data error, not a stack trace."""
+    source = tmp_path / "cp1252.csv"
+    source.write_bytes(
+        SAMPLE.read_text(encoding="utf-8")
+        .replace("Synthetic Colliery JV", "Bäcker Colliery JV")
+        .encode("cp1252")
+    )
+    out = tmp_path / "wip-schedule.csv"
+    assert main(["schedule", str(source), "-o", str(out)]) == 1
+    assert capsys.readouterr().err.startswith("error: ")
+
+
+def test_oversized_field_reports_an_error_not_a_traceback(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A field past the csv module's limit is a data error, not a stack trace."""
+    header, first_row = SAMPLE.read_text(encoding="utf-8").splitlines()[:2]
+    fields = first_row.split(",")
+    fields[2] = '"' + "x" * (csv.field_size_limit() + 1000) + '"'
+    source = tmp_path / "oversized.csv"
+    source.write_text(f"{header}\n{','.join(fields)}\n", encoding="utf-8")
+    out = tmp_path / "wip-schedule.csv"
+    assert main(["schedule", str(source), "-o", str(out)]) == 1
+    assert capsys.readouterr().err.startswith("error: ")
 
 
 def test_mapping_file_renames_columns(tmp_path: Path) -> None:

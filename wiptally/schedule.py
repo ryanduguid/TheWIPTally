@@ -168,8 +168,9 @@ def _cost_to_cost_revenue(
         )
         _require_non_negative(contract, recoverable, "recoverable_costs")
         # AASB 15 para 45: recognise revenue only to the extent of the costs
-        # incurred, so recoverable cost is capped at cost to date rather than
-        # taken on trust from the ledger export.
+        # incurred. Recoverable cost above cost to date is refused rather than
+        # reduced to it, because the excess is a mapping error the operator has
+        # to resolve, not a figure this engine may quietly rewrite.
         if recoverable > contract.costs_incurred:
             raise ScheduleError(
                 f"{_where(contract, 'recoverable_costs')} {recoverable} exceeds "

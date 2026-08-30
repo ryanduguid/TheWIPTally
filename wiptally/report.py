@@ -79,13 +79,25 @@ def _one_line(value: str) -> str:
 
 
 def _md_cell(value: str) -> str:
-    """Escape a ledger-derived value for one markdown table cell.
+    r"""Escape a ledger-derived value for one markdown table cell.
 
-    Contract identifiers come from whatever the ledger holds. An unescaped pipe
-    pushes the rest of the row under the wrong headings, and an embedded newline
-    ends the table.
+    Contract identifiers come from whatever the ledger holds, so the property
+    to keep is a round trip: the identifier a reader lifts back out of the
+    rendered cell is the identifier the ledger stored. A raw pipe loses that
+    round trip in every conforming renderer, and an embedded newline ends the
+    table outright.
+
+    Backslashes are escaped first, and the order matters. Escaping only the
+    pipe turns a ledger ``JOB\|A`` into ``JOB\\|A``, which round trips nowhere.
+    Renderers differ only in how they wreck it, so do not reason from one of
+    them: cmark-gfm, which GitHub renders with, keeps four columns but drops
+    the backslash and shows ``JOB|A``, while a pair-consuming reader such as
+    marked takes the pipe as live and shows ``JOB\`` with the remaining cells
+    one heading to the right. Doubling the backslashes first leaves every pipe
+    preceded by an odd-length backslash run, and ``JOB\|A`` comes back out of
+    both.
     """
-    return _one_line(value).replace("|", "\\|")
+    return _one_line(value).replace("\\", "\\\\").replace("|", "\\|")
 
 
 def _row(position: ContractPosition, as_at: str) -> list[str]:

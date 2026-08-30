@@ -97,6 +97,106 @@ def test_review_pack_escapes_pipes_in_ledger_identifiers(tmp_path: Path) -> None
     assert cells[3].endswith(" |")
 
 
+def _markdown_cells(row: str) -> list[str]:
+    r"""Split a rendered table row the way a pair-consuming reader does.
+
+    A pipe opens a new column unless an odd-length run of backslashes precedes
+    it, so escapes are consumed in pairs. That models CommonMark escaping and
+    readers built on it, such as marked. It is deliberately not cmark-gfm,
+    whose table scanner recognises only the two-character sequence ``\|`` and
+    so keeps the header's column count while corrupting the cell instead. The
+    two families wreck a mis-escaped identifier differently, which is why the
+    round trip, not the cell count, is the assertion that pins both.
+    ``row.split(" | ")`` sees neither, because a pipe smuggled in through an
+    identifier carries no surrounding spaces.
+    """
+    cells: list[str] = []
+    current: list[str] = []
+    index = 0
+    while index < len(row):
+        char = row[index]
+        if char == "\\" and index + 1 < len(row):
+            current.append(row[index : index + 2])
+            index += 2
+        elif char == "|":
+            cells.append("".join(current))
+            current = []
+            index += 1
+        else:
+            current.append(char)
+            index += 1
+    cells.append("".join(current))
+    assert cells[0] == "" and cells[-1] == "", f"row is not pipe-delimited: {row!r}"
+    return cells[1:-1]
+
+
+def _markdown_text(cell: str) -> str:
+    """Undo one level of backslash escaping, as a markdown reader would."""
+    out: list[str] = []
+    index = 0
+    while index < len(cell):
+        if cell[index] == "\\" and index + 1 < len(cell):
+            out.append(cell[index + 1])
+            index += 2
+        else:
+            out.append(cell[index])
+            index += 1
+    return "".join(out)
+
+
+def test_review_pack_escapes_backslashes_before_pipes(tmp_path: Path) -> None:
+    r"""An identifier already holding ``\|`` must survive the table unchanged.
+
+    Escaping the pipe without first escaping the backslash rewrote ``JOB\|A``
+    as ``JOB\\|A``, which no renderer reads back as ``JOB\|A``. That lost round
+    trip is the defect, and it is renderer-independent. How the damage shows is
+    not: cmark-gfm, which GitHub renders with, holds the row at four cells and
+    silently drops the backslash to give ``JOB|A``, while a pair-consuming
+    reader such as marked takes the pipe as live and gives ``JOB\`` with margin
+    and fade one heading to the right. So the round trip is asserted first and
+    the cell count second. ``row.split(" | ")`` reported four either way,
+    because the smuggled pipe carries no surrounding spaces.
+    """
+    contract_id = r"JOB\|A"
+    source = tmp_path / "contracts.csv"
+    with source.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle, lineterminator="\n")
+        writer.writerow(
+            [
+                "contract_id",
+                "original_contract_sum",
+                "costs_incurred",
+                "estimated_cost_to_complete",
+                "certified_billings",
+                "uncertified_claims",
+            ]
+        )
+        writer.writerow([contract_id, "1000.00", "400.00", "400.00", "450.00", "10.00"])
+
+    contracts = read_contracts(source, load_mapping(None))
+    schedule = Schedule(
+        as_at="2026-08-31",
+        positions=[measure(contract) for contract in contracts],
+        source_name=source.name,
+    )
+    out = tmp_path / "wip-schedule.csv"
+    write_schedule_csv(out, schedule)
+    pack = build_review_pack(out, source, schedule)
+
+    lines = pack.splitlines()
+    header = next(line for line in lines if line.startswith("| Contract |"))
+    row = next(line for line in lines if line.startswith("| JOB"))
+    width = len(_markdown_cells(header))
+    assert width == 4, f"the header is no longer four columns: {header!r}"
+    cells = _markdown_cells(row)
+    # The round trip holds in every conforming renderer, so it leads.
+    assert _markdown_text(cells[0].strip()) == contract_id, (
+        f"the identifier did not survive the table: {row!r}"
+    )
+    assert len(cells) == width, f"the identifier shifted the row: {row!r}"
+    assert cells[1].strip() == "20.00%"
+
+
 def test_schedule_totals_do_not_net() -> None:
     contracts = read_contracts(SAMPLE, load_mapping(None))
     schedule = Schedule(

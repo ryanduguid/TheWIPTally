@@ -7,9 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from wiptally.csv_io import CsvError, load_mapping, read_contracts
+from wiptally.csv_io import CANONICAL_FIELDS, CsvError, load_mapping, read_contracts
 from wiptally.csvsafe import guard
 from wiptally.model import Schedule
+from wiptally.report import OUTPUT_COLUMNS, build_review_pack, write_schedule_csv
 from wiptally.schedule import measure
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,6 +44,57 @@ def test_formula_injection_is_escaped() -> None:
     assert guard("=cmd") == "'=cmd"
     assert guard("-00123") == "-00123"
     assert guard("-A1") == "'-A1"
+
+
+def test_every_accepted_input_field_is_read_by_something() -> None:
+    """The schema must not accept, validate and store an input nothing reads.
+
+    A `--mapping-file` will happily point a real ledger column at a field the
+    engine drops, and the figure then vanishes with no trace in the output.
+    """
+    engine = (ENGINE / "schedule.py").read_text(encoding="utf-8")
+    for name in CANONICAL_FIELDS:
+        assert name in OUTPUT_COLUMNS or name in engine, (
+            f"{name} is parsed and validated, but no rule and no output column reads it"
+        )
+
+
+def test_review_pack_escapes_pipes_in_ledger_identifiers(tmp_path: Path) -> None:
+    """A contract id out of the ledger must not create markdown table columns."""
+    source = tmp_path / "contracts.csv"
+    with source.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle, lineterminator="\n")
+        writer.writerow(
+            [
+                "contract_id",
+                "original_contract_sum",
+                "costs_incurred",
+                "estimated_cost_to_complete",
+                "certified_billings",
+                "uncertified_claims",
+            ]
+        )
+        writer.writerow(
+            ["JOB|A\n| 999 | pwned", "1000.00", "400.00", "400.00", "450.00", "10.00"]
+        )
+
+    contracts = read_contracts(source, load_mapping(None))
+    schedule = Schedule(
+        as_at="2026-08-31",
+        positions=[measure(contract) for contract in contracts],
+        source_name=source.name,
+    )
+    out = tmp_path / "wip-schedule.csv"
+    write_schedule_csv(out, schedule)
+    pack = build_review_pack(out, source, schedule)
+
+    row = next(line for line in pack.splitlines() if line.startswith("| JOB"))
+    cells = row.split(" | ")
+    assert len(cells) == 4, f"the identifier shifted the row: {row!r}"
+    assert cells[0] == r"| JOB\|A \| 999 \| pwned"
+    assert cells[1] == "20.00%"
+    assert cells[3].startswith("uncertified_claims_present")
+    assert cells[3].endswith(" |")
 
 
 def test_schedule_totals_do_not_net() -> None:

@@ -19,7 +19,7 @@ Checked against the public AASB 15 text as cited in
 | Cost-to-cost input method | 39-40, B18 | Progress = progress cost / progress EAC. |
 | Exclude wasted cost from the progress measure | B19(a), 98(b) | `inefficiency_rework_wastage` is stripped from numerator and denominator and left in EAC / margin. |
 | Uninstalled materials at cost | B19(b) | `uninstalled_materials` recognised at cost (zero margin); remainder of transaction price follows POC. |
-| Outcome not reasonably measurable | 44-45 | Revenue limited to `recoverable_costs` (defaulting to progress cost). Percent complete is reported as zero. |
+| Outcome not reasonably measurable | 44-45 | Revenue limited to `recoverable_costs` (defaulting to progress cost) and capped at `costs_incurred`, because para 45 recognises revenue only to the extent of the costs incurred. Percent complete is reported as zero. |
 | Contract asset vs contract liability | 105-107 | Per contract, revenue minus certified billings. Positive = asset. Negative = liability. No cross-contract offset. |
 | Change in estimate | 43, AASB 108 | Period revenue = current revenue to date minus prior revenue to date. Comparatives are not restated, because this tool has no comparatives. |
 | Right-to-invoice expedient | B16 | If selected, revenue equals certified billings. Flagged as not cost-to-cost. |

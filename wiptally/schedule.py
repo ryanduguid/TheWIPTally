@@ -19,7 +19,7 @@ from .model import (
     ContractInput,
     ContractPosition,
 )
-from .money import as_money
+from .money import as_money, as_points
 
 ZERO = Decimal("0.00")
 STALE_SPEND = Decimal("1000.00")
@@ -167,9 +167,18 @@ def _cost_to_cost_revenue(
             contract.recoverable_costs if contract.recoverable_costs is not None else progress_cost
         )
         _require_non_negative(contract, recoverable, "recoverable_costs")
-        # AASB 15 para 45: recognise revenue only to the extent of recoverable costs.
-        # Uninstalled materials sit in recoverable cost if they were incurred; they
-        # are not given a second, separate credit here.
+        # AASB 15 para 45: recognise revenue only to the extent of the costs
+        # incurred, so recoverable cost is capped at cost to date rather than
+        # taken on trust from the ledger export.
+        if recoverable > contract.costs_incurred:
+            raise ScheduleError(
+                f"{_where(contract, 'recoverable_costs')} {recoverable} exceeds "
+                f"costs incurred {contract.costs_incurred}; para 45 recognises "
+                f"revenue only to the extent of the costs incurred"
+            )
+        # The default is progress cost, which has the B19 exclusions taken out.
+        # Uninstalled material cost that is in fact recoverable therefore has to
+        # be supplied in recoverable_costs; it is not added back here.
         return ZERO, as_money(recoverable)
 
     if progress_eac <= 0:
@@ -213,9 +222,11 @@ def _prior_margin(contract: ContractInput) -> Decimal | None:
 
 
 def _fade_points(margin: Decimal | None, prior_margin: Decimal | None) -> Decimal | None:
+    # Quantised here, not in the formatter, so the fade that is flagged is the
+    # same fade the console and the review pack print.
     if margin is None or prior_margin is None:
         return None
-    return (prior_margin - margin) * Decimal(100)
+    return as_points((prior_margin - margin) * Decimal(100))
 
 
 def _flag_commercial(
@@ -247,7 +258,9 @@ def _flag_commercial(
     ):
         flags.append("stale_cost_to_complete")
 
-    if gross_profit < 0 and contract.outcome_reasonably_measurable:
+    # AASB 137 does not wait for the outcome to be reasonably measurable, and an
+    # unmeasurable job is the one most likely to be underwater.
+    if gross_profit < 0:
         flags.append("negative_margin_at_completion")
         flags.append("onerous_contract_review_aasb_137")
         if contract.assets_used_carrying and contract.assets_used_carrying > 0:

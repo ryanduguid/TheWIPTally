@@ -43,6 +43,20 @@ def _require_suffix(path: Path, suffix: str) -> None:
         raise CsvError(f"{path} must have a {suffix} filename")
 
 
+def _as_at(raw: str | None) -> str:
+    """Return the reporting date in YYYY-MM-DD form.
+
+    This one field dates the evidence, so a transposed `2026-31-08` is refused
+    rather than printed on a sign-off pack.
+    """
+    if raw is None:
+        return date.today().isoformat()
+    try:
+        return date.fromisoformat(raw).isoformat()
+    except ValueError as exc:
+        raise CsvError(f"--as-at {raw!r} is not a date in YYYY-MM-DD form") from exc
+
+
 def cmd_schedule(args: argparse.Namespace) -> int:
     source = Path(args.contracts)
     out = Path(args.output)
@@ -53,7 +67,7 @@ def cmd_schedule(args: argparse.Namespace) -> int:
     mapping = load_mapping(mapping_path)
     contracts = read_contracts(source, mapping)
     positions = [measure(contract) for contract in contracts]
-    as_at = args.as_at or date.today().isoformat()
+    as_at = _as_at(args.as_at)
     schedule = Schedule(as_at=as_at, positions=positions, source_name=source.name)
     write_schedule_csv(out, schedule)
     print(render_console(schedule), end="")
@@ -78,7 +92,7 @@ def cmd_review_pack(args: argparse.Namespace) -> int:
     mapping = load_mapping(mapping_path)
     contracts = read_contracts(source, mapping)
     positions = [measure(contract) for contract in contracts]
-    as_at = args.as_at or date.today().isoformat()
+    as_at = _as_at(args.as_at)
     schedule = Schedule(as_at=as_at, positions=positions, source_name=source.name)
     if not schedule_path.exists():
         raise CsvError(

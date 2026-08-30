@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+from collections.abc import Iterable, Iterator
 from decimal import Decimal
 from pathlib import Path
 
@@ -43,9 +44,7 @@ CANONICAL_FIELDS = (
     "prior_estimated_cost_to_complete",
     "prior_revenue_to_date",
     "gst_rate",
-    "onerous_exit_cost",
     "assets_used_carrying",
-    "combination_group",
 )
 
 REQUIRED_FIELDS = (
@@ -70,6 +69,8 @@ def load_mapping(path: Path | None) -> dict[str, str]:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except OSError as exc:
         raise CsvError(f"cannot read mapping file {path}: {exc}") from exc
+    except UnicodeDecodeError as exc:
+        raise CsvError(f"mapping file {path} is not UTF-8: {exc}") from exc
     except json.JSONDecodeError as exc:
         raise CsvError(f"mapping file {path} is not JSON: {exc}") from exc
     if not isinstance(payload, dict):
@@ -126,6 +127,24 @@ def _money_or_none(
     return parse_money(raw, where)
 
 
+def _readable_rows(reader: Iterable[list[str]], path: Path) -> Iterator[list[str]]:
+    """Yield CSV rows, naming the file when the bytes are not readable as CSV.
+
+    A ledger export saved in the Windows ANSI codepage, or one carrying a field
+    larger than the csv module will take, is a data error like any other. It
+    reports as one line of `error:`, not as a stack trace.
+    """
+    try:
+        yield from reader
+    except UnicodeDecodeError as exc:
+        raise CsvError(
+            f"cannot read {path}: it is not UTF-8 at byte {exc.start} "
+            f"({exc.reason}); re-export it as UTF-8"
+        ) from exc
+    except csv.Error as exc:
+        raise CsvError(f"cannot read {path} as CSV: {exc}") from exc
+
+
 def read_contracts(path: Path, mapping: dict[str, str]) -> list[ContractInput]:
     try:
         handle = path.open("r", encoding="utf-8-sig", newline="")
@@ -133,7 +152,7 @@ def read_contracts(path: Path, mapping: dict[str, str]) -> list[ContractInput]:
         raise CsvError(f"cannot read {path}: {exc}") from exc
 
     with handle:
-        reader = csv.reader(handle)
+        reader = _readable_rows(csv.reader(handle), path)
         try:
             header = next(reader)
         except StopIteration as exc:
@@ -293,7 +312,5 @@ def _parse_row(
         prior_estimated_cost_to_complete=money_none("prior_estimated_cost_to_complete"),
         prior_revenue_to_date=money_none("prior_revenue_to_date"),
         gst_rate=gst_rate,
-        onerous_exit_cost=money_none("onerous_exit_cost"),
         assets_used_carrying=money_none("assets_used_carrying"),
-        combination_group=cell("combination_group") or "",
     )

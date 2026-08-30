@@ -53,9 +53,7 @@ class ContractInput:
     prior_estimated_cost_to_complete: Decimal | None
     prior_revenue_to_date: Decimal | None
     gst_rate: Decimal
-    onerous_exit_cost: Decimal | None
     assets_used_carrying: Decimal | None
-    combination_group: str
 
 
 @dataclass

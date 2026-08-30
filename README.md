@@ -77,19 +77,23 @@ requires practitioner sign-off. Exit code 1 is a data or file error.
 Full detail goes to `wip-schedule.csv`. Then:
 
 ```bash
-wip-tally review-pack wip-schedule.csv --source examples/sample_contracts.csv -o practitioner-review.md
+wip-tally review-pack wip-schedule.csv --source examples/sample_contracts.csv --as-at 2026-08-31 -o practitioner-review.md
 ```
 
 The pack binds itself to the source and schedule bytes with SHA-256, lists
 every flagged contract, and puts a sign-off checklist on the page. Keep the
 CSV beside the pack. The CSV is the row-level evidence.
 
+The reporting date is written on every schedule row, so it is inside the bytes
+the pack rebuilds and hashes. Give both commands the same `--as-at`, or the
+pack refuses to bind one period's numbers to another period's header.
+
 ### Options
 
 | Option | What it does |
 | --- | --- |
 | `-o, --output` | Where to write the schedule CSV (default `wip-schedule.csv`) or the review pack |
-| `--as-at DATE` | Reporting date printed on the schedule (default: today) |
+| `--as-at DATE` | Reporting date as `YYYY-MM-DD`, written on every schedule row (default: today) |
 | `--mapping-file FILE` | JSON map of canonical field names to your column headings |
 
 ## Input columns
@@ -120,7 +124,7 @@ and read as absent.
 | `retention_classification` | `receivable`, `conditional`, or `review` (the default) |
 | `committed_outstanding` | Open POs and subcontracts still to invoice |
 | `outcome_reasonably_measurable` | `yes` (default) or `no`. `no` applies para 45 recoverable-cost-only revenue |
-| `recoverable_costs` | Required in substance when the outcome is not measurable; defaults to progress cost |
+| `recoverable_costs` | Required in substance when the outcome is not measurable; defaults to progress cost, and is refused above `costs_incurred` |
 | `progress_method` | `cost_to_cost` (default), `output`, or `right_to_invoice` |
 | `output_percent` | Required for `output`, as `0.40` or `40%` |
 | `prior_*` | Prior-period transaction price, EAC, cost, ETC and revenue, for fade and period revenue |

@@ -5,6 +5,7 @@ from decimal import Decimal
 import pytest
 
 from wiptally.model import ContractInput
+from wiptally.money import points
 from wiptally.schedule import ScheduleError, measure
 
 ZERO = Decimal("0.00")
@@ -39,9 +40,7 @@ def _contract(**overrides: object) -> ContractInput:
         prior_estimated_cost_to_complete=Decimal("600000.00"),
         prior_revenue_to_date=Decimal("250000.00"),
         gst_rate=Decimal("0.10"),
-        onerous_exit_cost=None,
         assets_used_carrying=None,
-        combination_group="",
     )
     values.update(overrides)
     return ContractInput(**values)  # type: ignore[arg-type]
@@ -177,6 +176,62 @@ def test_para_45_recognises_recoverable_cost_only() -> None:
     assert position.percent_complete == Decimal("0.00")
     assert position.contract_asset == Decimal("100000.00")
     assert "outcome_not_reasonably_measurable" in position.flags
+
+
+def test_para_45_revenue_cannot_exceed_costs_incurred() -> None:
+    """Para 45 recognises revenue only to the extent of the costs incurred.
+
+    A mis-mapped column would otherwise book a $900,000 contract asset against
+    $100,000 of cost on a $600,000 job.
+    """
+    with pytest.raises(ScheduleError):
+        measure(
+            _contract(
+                original_contract_sum=Decimal("600000.00"),
+                costs_incurred=Decimal("100000.00"),
+                estimated_cost_to_complete=Decimal("400000.00"),
+                certified_billings=ZERO,
+                outcome_reasonably_measurable=False,
+                recoverable_costs=Decimal("900000.00"),
+            )
+        )
+
+
+def test_onerous_flag_does_not_depend_on_a_measurable_outcome() -> None:
+    """AASB 137's test does not wait for the outcome to become measurable.
+
+    The row still writes a negative gross profit at completion, so suppressing
+    the flag would leave the figure and the verdict disagreeing.
+    """
+    position = measure(
+        _contract(
+            original_contract_sum=Decimal("600000.00"),
+            costs_incurred=Decimal("100000.00"),
+            estimated_cost_to_complete=Decimal("900000.00"),
+            certified_billings=ZERO,
+            outcome_reasonably_measurable=False,
+            recoverable_costs=Decimal("100000.00"),
+            assets_used_carrying=Decimal("40000.00"),
+        )
+    )
+    assert position.gross_profit_at_completion == Decimal("-400000.00")
+    assert "negative_margin_at_completion" in position.flags
+    assert "onerous_contract_review_aasb_137" in position.flags
+    assert "impair_contract_assets_before_provision_aasb_137_69" in position.flags
+
+
+def test_profit_fade_flag_reads_the_fade_that_is_displayed() -> None:
+    """A displayed 1.00-point fade must carry the flag that 1.00 points earns.
+
+    Prior EAC $790,010 against $800,000 is a raw 0.999-point movement, which
+    prints as 1.00 points.
+    """
+    position = measure(
+        _contract(prior_estimated_cost_at_completion=Decimal("790010.00"))
+    )
+    assert position.profit_fade_points is not None
+    assert points(position.profit_fade_points) == "1.00 points"
+    assert "profit_fade" in position.flags
 
 
 def test_right_to_invoice_sets_revenue_equal_to_certified_billings() -> None:

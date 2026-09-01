@@ -1,5 +1,5 @@
 # TheWIPTally
-> High-density context for LLM agents. AASB 15 construction WIP schedule — review aid, not a determination.
+> High-density context for LLM agents. AASB 15 construction WIP schedule: review aid, not a determination.
 
 ## Package Overview
 - **Repository**: https://github.com/ryanduguid/TheWIPTally

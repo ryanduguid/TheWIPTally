@@ -1,5 +1,15 @@
 # The WIP Tally
 
+> [!IMPORTANT]
+> **Repository migration: 2 September 2026.** We moved maintained development to
+> [`packages/the-wip-tally`](https://github.com/ryanduguid/australian-accounting/tree/main/packages/the-wip-tally)
+> in Australian Accounting. The first replacement release is
+> [`v0.1.0`](https://github.com/ryanduguid/australian-accounting/releases/tag/the-wip-tally/v0.1.0).
+>
+> This repository has no rollback release, so it remains the authoritative
+> fallback until the fourteen-day observation window closes on
+> 16 September 2026. Open new issues and pull requests in Australian Accounting.
+
 ```
 +----------------------------------------------------------------------+
 |                            TheWIPTally                               |

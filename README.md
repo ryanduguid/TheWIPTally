@@ -30,9 +30,11 @@
 
 **Status: incubating.** It is an evolving review aid, not a substitute for professional judgement.
 
-**Package lifecycle:** source-installable candidate only. A public package will
-be considered after demonstrated user demand, a fresh name-availability check
-and compatibility tests.
+**Package lifecycle:** we publish the maintained
+[`the-wip-tally` 0.1.0 package on PyPI](https://pypi.org/project/the-wip-tally/0.1.0/)
+from [`packages/the-wip-tally`](https://github.com/ryanduguid/australian-accounting/tree/main/packages/the-wip-tally)
+in Australian Accounting. This repository retains the pre-migration source as
+the fallback described above.
 
 `hardhat-ledger` already encodes the WIP *workflow*. This engine does the arithmetic that workflow consumes: cost-to-cost progress after AASB 15 para B19 exclusions, constrained variable consideration, per-contract contract assets and contract liabilities, and month-on-month profit fade.
 
@@ -50,7 +52,7 @@ paragraph number.
 
 Full boundary statement: [DISCLAIMER.md](DISCLAIMER.md).
 
-## Install
+## Historical source install
 
 Python 3.10 or later. No runtime dependencies.
 
